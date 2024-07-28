@@ -1,184 +1,166 @@
 import javax.imageio.ImageIO;
-import javax.sound.sampled.*;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Piano extends JPanel {
-    Image logo;
-    JFrame pianoFrame;
-    Map<String, Clip> soundMap = new HashMap<>();
-    Map<String, String> keySoundMap = new HashMap<>();
+    Image logoImage;
+    Map<Character, String> soundMap;
+    Map<String, JButton> buttonMap;
 
     Piano() {
-        super();
-        pianoFrame = new JFrame("Piano");
-        pianoFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        JFrame pianoFrame = new JFrame("Piano");
         pianoFrame.setSize(1040, 800);
         pianoFrame.setResizable(false);
         pianoFrame.setLocationRelativeTo(null);
+        pianoFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setBackground(Color.BLACK);
+        setLayout(null);
 
+        // Initialize the sound map
+        initializeSoundMap();
+
+        addTitleandLine();
+        addLogo();
+        addButtons();
+
+        pianoFrame.setContentPane(this);
         pianoFrame.setVisible(true);
 
-        try {
-            logo = loadImage("texture-treble-clef-dark-background-isolated-generative-ai_169016-29581.jpg");
-            loadSounds();
-        } catch (Exception e) {
-            System.out.println("Error Occurred: " + e.getMessage());
-        }
-
-        JPanel blackButtonPanel = new JPanel();
-        blackButtonPanel.setLayout(new GridLayout(1, 6)); // 1 row, 6 columns
-        blackButtonPanel.setBounds(0, 340, 1040, 100);
-
-        addButtonToPanel(blackButtonPanel, "W", Color.BLACK, Color.WHITE);
-        addButtonToPanel(blackButtonPanel, "E", Color.BLACK, Color.WHITE);
-        addButtonToPanel(blackButtonPanel, "T", Color.BLACK, Color.WHITE);
-        addButtonToPanel(blackButtonPanel, "Y", Color.BLACK, Color.WHITE);
-        addButtonToPanel(blackButtonPanel, "U", Color.BLACK, Color.WHITE);
-        addButtonToPanel(blackButtonPanel, "B", Color.BLACK, Color.WHITE);
-
-        JPanel whiteButtonPanel = new JPanel();
-        whiteButtonPanel.setLayout(new GridLayout(1, 12)); // 1 row, 12 columns
-        whiteButtonPanel.setBounds(0, 440, 1040, 260);
-
-        addButtonToPanel(whiteButtonPanel, "A", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "S", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "D", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "F", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "G", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "H", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "J", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "K", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "L", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "Z", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "X", Color.WHITE, Color.BLACK);
-        addButtonToPanel(whiteButtonPanel, "C", Color.WHITE, Color.BLACK);
-
-        // Add the button panels to the frame
-        pianoFrame.add(blackButtonPanel);
-        pianoFrame.add(whiteButtonPanel);
-
-        // Add the main panel to the frame
-        pianoFrame.add(this);
-
-        setBackground(Color.BLACK);
-
-        // Add key listener to the frame
-        pianoFrame.addKeyListener(new KeyAdapter() {
+        // Add key listener to the panel
+        addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                String keyText = String.valueOf(e.getKeyChar()).toUpperCase();
-                playSound(keyText);
+                char keyChar = Character.toUpperCase(e.getKeyChar()); // Convert to uppercase to match soundMap keys
+                if (soundMap.containsKey(keyChar)) {
+                    playSound(soundMap.get(keyChar));
+                }
             }
         });
+        setFocusable(true);
+        requestFocusInWindow(); // Ensure the panel has focus
 
-        // Ensure the frame has focus to capture key events
-        pianoFrame.setFocusable(true);
-        pianoFrame.requestFocusInWindow();
+        // Add action listeners to buttons
+        addButtonActionListeners();
     }
 
-    private void addButtonToPanel(JPanel panel, String buttonText, Color background, Color foreground) {
-        JButton button = new JButton(buttonText);
-        button.setBackground(background);
-        button.setForeground(foreground);
-        button.addActionListener(e -> playSound(buttonText));
-        panel.add(button);
+    private void addTitleandLine() {
+        JLabel titleLabel = new JLabel("Piano Section");
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setFont(new Font("Serif", Font.BOLD, 24));
+        titleLabel.setBounds(420, 20, 200, 30);
+        add(titleLabel);
+
+        JSeparator separator = new JSeparator();
+        separator.setBackground(Color.WHITE);
+        separator.setForeground(Color.WHITE);
+        separator.setBounds(0, 60, 1040, 2);
+        add(separator);
     }
 
-    private Image loadImage(String imageName) {
-        Image image = null;
-        try (InputStream is = getClass().getResourceAsStream("/Assets/" + imageName)) {
-            if (is != null) {
-                image = ImageIO.read(is);
-                System.out.println("Loaded " + imageName);
-            } else {
-                System.out.println("Error: " + imageName + " not found.");
-            }
+    private void addLogo() {
+        try {
+            logoImage = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\Assets\\musicLogo.jpg"));
         } catch (IOException e) {
-            System.out.println("Error loading " + imageName + ": " + e.getMessage());
+            System.out.println("Error displaying keyboard image: " + e.getMessage());
         }
-        return image;
     }
 
-    private void loadSounds() {
-        String[] keys = {"A", "B", "Bb", "C", "C_s", "C1", "C_s1", "D", "D_s", "D1", "D_s1", "E", "E1", "F", "F_s", "F1", "G", "G_s"};
-        String[] filenames = {"A.wav", "B.wav", "Bb.wav", "C.wav", "C_s.wav", "C1.wav", "C_s1.wav", "D.wav", "D_s.wav", "D1.wav", "D_s1.wav", "E.wav", "E1.wav", "F.wav", "F_s.wav", "F1.wav", "G.wav", "G_s.wav"};
-        for (int i = 0; i < keys.length; i++) {
-            String key = keys[i];
-            String filePath = "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\" + filenames[i];
-            try {
-                File soundFile = new File(filePath);
-                if (soundFile.exists()) {
-                    AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundFile);
-                    Clip clip = AudioSystem.getClip();
-                    clip.open(audioInputStream);
-                    soundMap.put(key, clip);
-                    keySoundMap.put(getButtonKeyForSoundKey(key), key);
-                    System.out.println("Loaded sound for key: " + key);
-                } else {
-                    System.out.println("Error: Sound file for key " + key + " not found at " + filePath);
-                }
-            } catch (Exception e) {
-                System.out.println("Error loading sound for key " + key + ": " + e.getMessage());
+    private void addButtons() {
+        buttonMap = new HashMap<>();
+
+        JPanel blackButtonPanel = new JPanel(new GridLayout(1, 10));
+        blackButtonPanel.setBounds(10, 340, 1000, 200);
+        String[] blackLabels = {"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"};
+        addButtonsToPanel(blackButtonPanel, blackLabels, Color.GRAY);
+
+        JPanel whiteButtonPanel = new JPanel(new GridLayout(1, 15));
+        whiteButtonPanel.setBounds(10, 540, 1000, 200);
+        String[] whiteLabels = {"A", "S", "D", "F", "G", "H", "J", "K", "L", "X", "C", "V", "B", "N", "M"};
+        addButtonsToPanel(whiteButtonPanel, whiteLabels, Color.WHITE);
+
+        add(blackButtonPanel);
+        add(whiteButtonPanel);
+    }
+
+    private void addButtonsToPanel(JPanel panel, String[] labels, Color color) {
+        for (String label : labels) {
+            JButton button = new JButton(label);
+            button.setPreferredSize(new Dimension(60, 200));
+            button.setBackground(color);
+            button.addActionListener(e -> playSound(soundMap.get(label.charAt(0))));
+            buttonMap.put(label, button);
+            panel.add(button);
+        }
+    }
+
+    private void addButtonActionListeners() {
+        for (Component comp : getComponents()) {
+            if (comp instanceof JButton) {
+                JButton button = (JButton) comp;
+                button.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        playSound(soundMap.get(button.getText().charAt(0)));
+                    }
+                });
             }
         }
     }
 
-    private String getButtonKeyForSoundKey(String soundKey) {
-        switch (soundKey) {
-            case "A": return "A";
-            case "B": return "B";
-            case "Bb": return "S";
-            case "C": return "C";
-            case "C_s": return "D";
-            case "C1": return "E";
-            case "C_s1": return "F";
-            case "D": return "G";
-            case "D_s": return "H";
-            case "D1": return "J";
-            case "D_s1": return "K";
-            case "E": return "L";
-            case "E1": return "Z";
-            case "F": return "X";
-            case "F_s": return "W";
-            case "F1": return "T";
-            case "G": return "Y";
-            case "G_s": return "U";
-            default: return null;
-        }
+    private void initializeSoundMap() {
+        soundMap = new HashMap<>();
+        soundMap.put('A', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\A.wav");
+        soundMap.put('B', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\B.wav");
+        soundMap.put('C', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\C.wav");
+        soundMap.put('D', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\D.wav");
+        soundMap.put('E', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\E.wav");
+        soundMap.put('F', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\F.wav");
+        soundMap.put('G', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\G.wav");
+        soundMap.put('H', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\H.wav");
+        soundMap.put('I', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\I.wav");
+        soundMap.put('J', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\J.wav");
+        soundMap.put('K', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\K.wav");
+        soundMap.put('L', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\L.wav");
+        soundMap.put('M', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\M.wav");
+        soundMap.put('N', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\N.wav");
+        soundMap.put('O', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\O.wav");
+        soundMap.put('P', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\P.wav");
+        soundMap.put('Q', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\Q.wav");
+        soundMap.put('R', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\R.wav");
+        soundMap.put('S', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\S.wav");
+        soundMap.put('T', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\T.wav");
+        soundMap.put('U', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\U.wav");
+        soundMap.put('V', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\V.wav");
+        soundMap.put('W', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\W.wav");
+        soundMap.put('X', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\X.wav");
     }
 
-    private void playSound(String key) {
-        String soundKey = keySoundMap.get(key);
-        Clip clip = soundMap.get(soundKey);
-        if (clip != null) {
-            if (clip.isRunning()) {
-                clip.stop();
-            }
-            clip.setFramePosition(0);
+    private void playSound(String filePath) {
+        try {
+            File soundFile = new File(filePath);
+            Clip clip = AudioSystem.getClip();
+            clip.open(AudioSystem.getAudioInputStream(soundFile));
             clip.start();
-        } else {
-            System.out.println("No sound mapped for key: " + key);
+        } catch (Exception e) {
+            System.out.println("Error playing sound: " + e.getMessage());
         }
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        g.setColor(Color.WHITE);
-        Font boldFont = new Font("Serif", Font.BOLD, 24);
-        g.setFont(boldFont);
-        g.drawString("Piano Section", 420, 40);
-        g.drawLine(0, 60, 1040, 60);
-
-        if (logo != null) g.drawImage(logo, 270, 110, 500, 200, this);
-        g.fillRect(0, 320, 1040, 500);
+        if (logoImage != null) {
+            g.drawImage(logoImage, 300, 100, 400, 200, this);
+        }
     }
 }

@@ -25,7 +25,7 @@ public class Menu extends JPanel {
             drumImage = loadImage("drum.jpg");
             guitarImage = loadImage("guitar.jpg");
             violenImage = loadImage("Xylophone.jpg");
-            fluteImage = loadImage("flute.jpg");
+            fluteImage = loadImage("Bass Guitar.jpg");
             keyboardImage = loadImage("gaming-keyboards-200-01.jpg");
         } catch (Exception e) {
             System.out.println("Error Occurred: " + e.getMessage());
@@ -80,11 +80,11 @@ public class Menu extends JPanel {
                 new Xylo();
             }
         });
-        JButton fluteButton = createButton("Flute", 360, 660, 300, 30);
+        JButton fluteButton = createButton("Bass Guitar", 360, 660, 300, 30);
         fluteButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                new Flute();
+                new Bguitar();
             }
         });
         JButton keyboardButton = createButton("Keyboard", 700, 660, 300, 30);

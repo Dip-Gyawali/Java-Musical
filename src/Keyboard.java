@@ -123,8 +123,4 @@ public class Keyboard extends JPanel {
             System.out.println("Error playing sound: " + e.getMessage());
         }
     }
-
-    public static void main(String[] args) {
-        new Keyboard();
-    }
 }
