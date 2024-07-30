@@ -1,12 +1,8 @@
 import javax.imageio.ImageIO;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -16,6 +12,9 @@ public class Piano extends JPanel {
     Image logoImage;
     Map<Character, String> soundMap;
     Map<String, JButton> buttonMap;
+    TargetDataLine tdl; // Java sound API to record the audio and save in a file
+    boolean isRecord = false;
+    File recordStore;
 
     Piano() {
         JFrame pianoFrame = new JFrame("Piano");
@@ -26,31 +25,30 @@ public class Piano extends JPanel {
         setBackground(Color.BLACK);
         setLayout(null);
 
-        // Initialize the sound map
         initializeSoundMap();
-
         addTitleandLine();
         addLogo();
+        recordBtn();
         addButtons();
-
         pianoFrame.setContentPane(this);
         pianoFrame.setVisible(true);
 
-        // Add key listener to the panel
-        addKeyListener(new KeyAdapter() {
+        pianoFrame.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                char keyChar = Character.toUpperCase(e.getKeyChar()); // Convert to uppercase to match soundMap keys
+                char keyChar = Character.toUpperCase(e.getKeyChar());
                 if (soundMap.containsKey(keyChar)) {
-                    playSound(soundMap.get(keyChar));
+                    JButton button = buttonMap.get(String.valueOf(keyChar));
+                    if (button != null) {
+                        pressButton(button);
+                        playSound(soundMap.get(keyChar));
+                    }
                 }
+                pianoFrame.requestFocusInWindow();
             }
         });
-        setFocusable(true);
-        requestFocusInWindow(); // Ensure the panel has focus
-
-        // Add action listeners to buttons
-        addButtonActionListeners();
+        pianoFrame.setFocusable(true);
+        pianoFrame.requestFocusInWindow();
     }
 
     private void addTitleandLine() {
@@ -75,6 +73,77 @@ public class Piano extends JPanel {
         }
     }
 
+    private void recordBtn() {
+        JButton recordButton = new JButton("Record");
+        recordButton.setBounds(30, 5, 100, 50);
+        recordButton.setBackground(Color.RED);
+        recordButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!isRecord) {
+                    recordStore = recordFileSave();
+                    startRecording();
+                    recordButton.setText("Stop");
+                } else {
+                    stopRecording();
+                    recordButton.setText("Record");
+                }
+                SwingUtilities.getWindowAncestor(Piano.this).requestFocusInWindow();
+            }
+        });
+        add(recordButton);
+    }
+
+    private File recordFileSave() {
+        File directory = new File("D:\\JAVA\\JavaSwing\\Main\\All records");
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        int count = 1;
+        File file;
+        do {
+            file = new File(directory, "piano records" + count + ".wav");
+            count++;
+        } while (file.exists());
+
+        return file;
+    }
+
+    private void startRecording() {
+        try {
+            AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+            if (!AudioSystem.isLineSupported(info)) {
+                System.out.println("Error: Line not supported");
+                return;
+            }
+            tdl = (TargetDataLine) AudioSystem.getLine(info);
+            tdl.open(format);
+            tdl.start();
+            System.out.println("Start Recording...");
+            isRecord = true;
+            Thread recordingThread = new Thread(() -> {
+                try (AudioInputStream audioStream = new AudioInputStream(tdl)) {
+                    AudioSystem.write(audioStream, AudioFileFormat.Type.WAVE, recordStore);
+                    System.out.println("Recording saved to: " + recordStore.getAbsolutePath());
+                } catch (IOException e) {
+                    System.out.println("Error during recording: " + e.getMessage());
+                }
+            });
+            recordingThread.start();
+        } catch (LineUnavailableException e) {
+            System.out.println("Error: Line unavailable - " + e.getMessage());
+        }
+    }
+
+    private void stopRecording() {
+        isRecord = false;
+        tdl.stop();
+        tdl.close();
+        System.out.println("Stopped Recording");
+    }
+
     private void addButtons() {
         buttonMap = new HashMap<>();
 
@@ -97,23 +166,14 @@ public class Piano extends JPanel {
             JButton button = new JButton(label);
             button.setPreferredSize(new Dimension(60, 200));
             button.setBackground(color);
-            button.addActionListener(e -> playSound(soundMap.get(label.charAt(0))));
             buttonMap.put(label, button);
             panel.add(button);
-        }
-    }
-
-    private void addButtonActionListeners() {
-        for (Component comp : getComponents()) {
-            if (comp instanceof JButton) {
-                JButton button = (JButton) comp;
-                button.addActionListener(new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        playSound(soundMap.get(button.getText().charAt(0)));
-                    }
-                });
-            }
+            button.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    SwingUtilities.getWindowAncestor(Piano.this).requestFocusInWindow();
+                }
+            });
         }
     }
 
@@ -145,14 +205,37 @@ public class Piano extends JPanel {
         soundMap.put('X', "D:\\JAVA\\JavaSwing\\Main\\src\\pianoSound\\X.wav");
     }
 
+    private void pressButton(JButton button) {
+        Color originalColor = button.getBackground();
+        button.setBackground(Color.LIGHT_GRAY);
+        Object currentTimer = button.getClientProperty("pressTimer");
+        if (currentTimer instanceof Timer) {
+            ((Timer) currentTimer).stop();
+        }
+        Timer timer = new Timer(100, e -> button.setBackground(originalColor));
+        timer.setRepeats(false);
+        timer.start();
+        button.putClientProperty("pressTimer", timer);
+    }
+
     private void playSound(String filePath) {
         try {
             File soundFile = new File(filePath);
+            if (!soundFile.exists()) {
+                System.out.println("File does not exist: " + filePath);
+                return;
+            }
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(soundFile);
             Clip clip = AudioSystem.getClip();
-            clip.open(AudioSystem.getAudioInputStream(soundFile));
+            clip.open(audioStream);
             clip.start();
-        } catch (Exception e) {
-            System.out.println("Error playing sound: " + e.getMessage());
+            clip.drain();
+        } catch (UnsupportedAudioFileException e) {
+            System.out.println("Unsupported audio file format: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("I/O error: " + e.getMessage());
+        } catch (LineUnavailableException e) {
+            System.out.println("Audio line unavailable: " + e.getMessage());
         }
     }
 

@@ -1,17 +1,19 @@
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Bguitar extends JPanel {
     private Map<Character, String> soundMap;
+    private Map<String, JButton> buttonMap;
+    private TargetDataLine tdl;
+    private boolean isRecord = false;
+    private File recordStore;
 
     public Bguitar() {
         JFrame bguitarFrame = new JFrame("Bass Guitar");
@@ -26,25 +28,26 @@ public class Bguitar extends JPanel {
         addButtons();
         displayBguitar();
         addTitleandLine();
-
+        addRecordButton();
         bguitarFrame.add(this);
         bguitarFrame.setVisible(true);
 
-        // Add key listener to the panel
-        addKeyListener(new KeyAdapter() {
+        bguitarFrame.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                char keyChar = Character.toUpperCase(e.getKeyChar()); // Convert to uppercase to match soundMap keys
+                char keyChar = Character.toUpperCase(e.getKeyChar());
                 if (soundMap.containsKey(keyChar)) {
-                    playSound(soundMap.get(keyChar));
+                    JButton button = buttonMap.get(String.valueOf(keyChar));
+                    if (button != null) {
+                        pressButton(button);
+                        playSound(soundMap.get(keyChar));
+                    }
                 }
+                bguitarFrame.requestFocusInWindow();
             }
         });
-        setFocusable(true);
-        requestFocusInWindow(); // Ensure the panel has focus
-
-        // Add action listeners to buttons
-        addButtonActionListeners();
+        bguitarFrame.setFocusable(true);
+        bguitarFrame.requestFocusInWindow();
     }
 
     private void displayBguitar() {
@@ -72,9 +75,79 @@ public class Bguitar extends JPanel {
         add(separator);
     }
 
+    private void addRecordButton() {
+        JButton recordButton = new JButton("Record");
+        recordButton.setBounds(30, 5, 100, 50);
+        recordButton.setBackground(Color.RED);
+        recordButton.addActionListener(e -> {
+            if (!isRecord) {
+                recordStore = recordFileSave();
+                startRecording();
+                recordButton.setText("Stop");
+            } else {
+                stopRecording();
+                recordButton.setText("Record");
+            }
+            SwingUtilities.getWindowAncestor(Bguitar.this).requestFocusInWindow();
+        });
+        add(recordButton);
+    }
+
+    private File recordFileSave() {
+        File directory = new File("D:\\JAVA\\JavaSwing\\Main\\All records");
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        int count = 1;
+        File file;
+        do {
+            file = new File(directory, "Bass Guitar Records" + count + ".wav");
+            count++;
+        } while (file.exists());
+
+        return file;
+    }
+
+    private void startRecording() {
+        try {
+            AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+            if (!AudioSystem.isLineSupported(info)) {
+                System.out.println("Error: Line not supported");
+                return;
+            }
+            tdl = (TargetDataLine) AudioSystem.getLine(info);
+            tdl.open(format);
+            tdl.start();
+            System.out.println("Start Recording...");
+            isRecord = true;
+            Thread recordingThread = new Thread(() -> {
+                try (AudioInputStream audioStream = new AudioInputStream(tdl)) {
+                    AudioSystem.write(audioStream, AudioFileFormat.Type.WAVE, recordStore);
+                    System.out.println("Recording saved to: " + recordStore.getAbsolutePath());
+                } catch (IOException e) {
+                    System.out.println("Error during recording: " + e.getMessage());
+                }
+            });
+            recordingThread.start();
+        } catch (LineUnavailableException e) {
+            System.out.println("Error: Line unavailable - " + e.getMessage());
+        }
+    }
+
+    private void stopRecording() {
+        isRecord = false;
+        if (tdl != null) {
+            tdl.stop();
+            tdl.close();
+        }
+        System.out.println("Stopped Recording");
+    }
+
     private void addButtons() {
-        // Define button positions and labels
-        String[] buttons = {"A", "S", "D", "F", "Q", "w", "E", "R", "Z", "X", "C", "V", "G", "H", "J", "K", "T", "Y", "U", "I", "B", "N", "m", "O", "1", "2", "3", "4", "5", "6", "7", "8"};
+        buttonMap = new HashMap<>();
+        String[] buttons = {"A", "S", "D", "F", "Q", "W", "E", "R", "Z", "X", "C", "V", "G", "H", "J", "K", "T", "Y", "U", "I", "B", "N", "M", "O", "1", "2", "3", "4", "5", "6", "7", "8"};
         int[][] positions = {
                 {170, 305}, {170, 375}, {170, 445}, {170, 515},
                 {280, 305}, {280, 375}, {280, 445}, {280, 520},
@@ -85,31 +158,18 @@ public class Bguitar extends JPanel {
                 {765, 305}, {765, 375}, {765, 450}, {765, 525},
                 {832, 305}, {832, 385}, {832, 450}, {832, 530}
         };
-
-        // Create and add buttons
         for (int i = 0; i < buttons.length; i++) {
             JButton button = new JButton(buttons[i]);
-            button.setBounds(positions[i][0], positions[i][1], 45, 45);
+            button.setBounds(positions[i][0], positions[i][1], 50, 45);
             button.setFont(new Font("Serif", Font.PLAIN, 15));
+            button.setBackground(Color.WHITE);
+            button.setFocusable(false);
             add(button);
+            buttonMap.put(buttons[i], button);
         }
 
         revalidate();
         repaint();
-    }
-
-    private void addButtonActionListeners() {
-        for (Component comp : getComponents()) {
-            if (comp instanceof JButton) {
-                JButton button = (JButton) comp;
-                button.addActionListener(new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        playSound(soundMap.get(button.getText().charAt(0)));
-                    }
-                });
-            }
-        }
     }
 
     private void initializeSoundMap() {
@@ -148,14 +208,38 @@ public class Bguitar extends JPanel {
         soundMap.put('8', "D:\\JAVA\\JavaSwing\\Main\\src\\bGuitarSound\\O.wav");
     }
 
+    private void pressButton(JButton button) {
+        Color originalColor = button.getBackground();
+        button.setBackground(Color.LIGHT_GRAY);
+        Object currentTimer = button.getClientProperty("pressTimer");
+        if (currentTimer instanceof Timer) {
+            ((Timer) currentTimer).stop();
+        }
+        Timer timer = new Timer(100, e -> button.setBackground(originalColor));
+        timer.setRepeats(false);
+        timer.start();
+        button.putClientProperty("pressTimer", timer);
+    }
+
     private void playSound(String filePath) {
         try {
             File soundFile = new File(filePath);
-            Clip clip = AudioSystem.getClip();
-            clip.open(AudioSystem.getAudioInputStream(soundFile));
-            clip.start();
-        } catch (Exception e) {
-            System.out.println("Error playing sound: " + e.getMessage());
+            if (!soundFile.exists()) {
+                System.out.println("File does not exist: " + filePath);
+                return;
+            }
+            try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(soundFile)) {
+                Clip clip = AudioSystem.getClip();
+                clip.open(audioStream);
+                clip.start();
+                clip.drain();
+            }
+        } catch (UnsupportedAudioFileException e) {
+            System.out.println("Unsupported audio file format: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("I/O error: " + e.getMessage());
+        } catch (LineUnavailableException e) {
+            System.out.println("Audio line unavailable: " + e.getMessage());
         }
     }
 }

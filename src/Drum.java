@@ -1,15 +1,31 @@
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
+import javax.imageio.ImageIO;
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Drum extends JPanel {
-    JFrame drumFrame;
+    private JFrame drumFrame;
+    private Map<Character, String> soundMap;
+    private Map<String, JButton> buttonMap;
+    private TargetDataLine tdl; // Java sound API to record the audio and save in a file
+    private boolean isRecord = false;
+    private File recordStore;
+    Image tom1;
+    Image tom2;
+    Image bass;
+    Image crash;
+    Image floorTom;
+    Image hihat;
+    Image ride;
+    Image snare;
 
     Drum() {
         super();
@@ -22,58 +38,30 @@ public class Drum extends JPanel {
         setLayout(null);
         addTitleAndLine();
         addButtons();
-
         setBackground(Color.BLACK);
 
+        initializeSoundMap();
+        displayDrum();
+        recordBtn();
         drumFrame.add(this);
         drumFrame.setVisible(true);
 
-        drumFrame.setFocusable(true);
-        drumFrame.requestFocusInWindow();
-
-        // Add key listener to frame
         drumFrame.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                char key = e.getKeyChar();
-                switch (key) {
-                    case 'V':
-                    case 'v':
-                        playSound("V");
-                        break;
-                    case 'A':
-                    case 'a':
-                        playSound("A");
-                        break;
-                    case 'S':
-                    case 's':
-                        playSound("S");
-                        break;
-                    case 'Q':
-                    case 'q':
-                        playSound("Q");
-                        break;
-                    case 'W':
-                    case 'w':
-                        playSound("W");
-                        break;
-                    case 'J':
-                    case 'j':
-                        playSound("J");
-                        break;
-                    case 'K':
-                    case 'k':
-                        playSound("K");
-                        break;
-                    case 'L':
-                    case 'l':
-                        playSound("L");
-                        break;
-                    default:
-                        break;
+                char keyChar = Character.toUpperCase(e.getKeyChar());
+                if (soundMap.containsKey(keyChar)) {
+                    JButton button = buttonMap.get(String.valueOf(keyChar));
+                    if (button != null) {
+                        pressButton(button);
+                        playSound(soundMap.get(keyChar));
+                    }
                 }
+                drumFrame.requestFocusInWindow(); // Ensure focus remains on the frame
             }
         });
+        drumFrame.setFocusable(true);
+        drumFrame.requestFocusInWindow();
     }
 
     private void addTitleAndLine() {
@@ -90,144 +78,206 @@ public class Drum extends JPanel {
         add(separator);
     }
 
+    public void displayDrum(){
+        try {
+             tom1 = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\tom1.png"));
+             tom2 = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\tom2.png"));
+             bass = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\bass.png"));
+             crash = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\crash.png"));
+             floorTom = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\floor tom.png"));
+             hihat = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\hihat.png"));
+             ride = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\ride.png"));
+             snare = ImageIO.read(new File("D:\\JAVA\\JavaSwing\\Main\\src\\drumImages\\snare.png"));
+
+        } catch (IOException e) {
+            System.out.println("Error displaying keyboard image: " + e.getMessage());
+        }
+    }
+    private void recordBtn() {
+        JButton recordButton = new JButton("Record");
+        recordButton.setBounds(30, 5, 100, 50);
+        recordButton.setBackground(Color.RED);
+        recordButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!isRecord) {
+                    recordStore = recordFileSave();
+                    startRecording();
+                    recordButton.setText("Stop");
+                } else {
+                    stopRecording();
+                    recordButton.setText("Record");
+                }
+                SwingUtilities.getWindowAncestor(Drum.this).requestFocusInWindow();
+            }
+        });
+        add(recordButton);
+    }
+
+    private File recordFileSave() {
+        File directory = new File("D:\\JAVA\\JavaSwing\\Main\\All records");
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        int count = 1;
+        File file;
+        do {
+            file = new File(directory, "drum records" + count + ".wav");
+            count++;
+        } while (file.exists());
+
+        return file;
+    }
+
+    private void startRecording() {
+        try {
+            AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+            if (!AudioSystem.isLineSupported(info)) {
+                System.out.println("Error: Line not supported");
+                return;
+            }
+            tdl = (TargetDataLine) AudioSystem.getLine(info);
+            tdl.open(format);
+            tdl.start();
+            System.out.println("Start Recording...");
+            isRecord = true;
+            Thread recordingThread = new Thread(() -> {
+                try (AudioInputStream audioStream = new AudioInputStream(tdl)) {
+                    AudioSystem.write(audioStream, AudioFileFormat.Type.WAVE, recordStore);
+                    System.out.println("Recording saved to: " + recordStore.getAbsolutePath());
+                } catch (IOException e) {
+                    System.out.println("Error during recording: " + e.getMessage());
+                }
+            });
+            recordingThread.start();
+        } catch (LineUnavailableException e) {
+            System.out.println("Error: Line unavailable - " + e.getMessage());
+        }
+    }
+
+    private void stopRecording() {
+        isRecord = false;
+        tdl.stop();
+        tdl.close();
+        System.out.println("Stopped Recording");
+    }
+
     private void addButtons() {
-        // Blue button
-        CircularButton blueButton = new CircularButton("V", Color.BLUE);
-        blueButton.setBounds(370, 450, 300, 300);
-        add(blueButton);
+        buttonMap = new HashMap<>();
+        String[] buttons={"A","S","V","Q","W","K","J","L"};
+        int[][] positions = {
+                {420,370},{580,370},{500,620},{280,450},{690,450},{740,360},{270,350},{120,440}
+        };
+        for (int i = 0; i < buttons.length; i++) {
+            JButton button = new JButton(buttons[i]);
+            button.setBounds(positions[i][0], positions[i][1], 50, 45);
+            button.setFont(new Font("Serif", Font.PLAIN, 15));
+            button.setBackground(Color.WHITE);
+            button.setFocusable(false);
+            add(button);
+            buttonMap.put(buttons[i], button);
+        }
 
-        // Red buttons
-        CircularButton redButton1 = new CircularButton("A", Color.RED);
-        redButton1.setBounds(370, 320, 140, 140);
-        add(redButton1);
-        CircularButton redButton2 = new CircularButton("S", Color.RED);
-        redButton2.setBounds(530, 320, 140, 140);
-        add(redButton2);
+        revalidate();
+        repaint();
+    }
 
-        // Green buttons
-        CircularButton greenButton1 = new CircularButton("Q", Color.GREEN);
-        greenButton1.setBounds(230, 420, 160, 160);
-        add(greenButton1);
-        CircularButton greenButton2 = new CircularButton("W", Color.GREEN);
-        greenButton2.setBounds(640, 440, 160, 100);
-        add(greenButton2);
+    private void initializeSoundMap() {
+        soundMap = new HashMap<>();
+        soundMap.put('V', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\V.wav");
+        soundMap.put('A', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\A.wav");
+        soundMap.put('S', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\S.wav");
+        soundMap.put('Q', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\Q.wav");
+        soundMap.put('W', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\W.wav");
+        soundMap.put('J', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\J.wav");
+        soundMap.put('K', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\K.wav");
+        soundMap.put('L', "D:\\JAVA\\JavaSwing\\Main\\src\\drumSound\\L.wav");
+    }
 
-        // Yellow buttons (elliptical shapes)
-        EllipticalButton yellowButton1 = new EllipticalButton("J", Color.YELLOW);
-        yellowButton1.setBounds(210, 350, 160, 60);
-        add(yellowButton1);
-        EllipticalButton yellowButton2 = new EllipticalButton("K", Color.YELLOW);
-        yellowButton2.setBounds(670, 340, 200, 90);
-        add(yellowButton2);
-        EllipticalButton yellowButton3 = new EllipticalButton("L", Color.YELLOW);
-        yellowButton3.setBounds(100, 400, 80, 40);
-        add(yellowButton3);
+    private void pressButton(JButton button) {
+        Color originalColor = button.getBackground();
+        button.setBackground(Color.LIGHT_GRAY);
+        Object currentTimer = button.getClientProperty("pressTimer");
+        if (currentTimer instanceof Timer) {
+            ((Timer) currentTimer).stop();
+        }
+        Timer timer = new Timer(100, e -> button.setBackground(originalColor));
+        timer.setRepeats(false);
+        timer.start();
+        button.putClientProperty("pressTimer", timer);
+    }
+
+    private void playSound(String filePath) {
+        try {
+            File soundFile = new File(filePath);
+            if (!soundFile.exists()) {
+                System.out.println("File does not exist: " + filePath);
+                return;
+            }
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(soundFile);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioStream);
+            clip.start();
+            clip.drain();
+        } catch (UnsupportedAudioFileException e) {
+            System.out.println("Unsupported audio file format: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("I/O error: " + e.getMessage());
+        } catch (LineUnavailableException e) {
+            System.out.println("Audio line unavailable: " + e.getMessage());
+        }
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         g.setColor(Color.WHITE);
-        // to connect tom1 and tom2
+
+        // Connect tom1 and tom2
         g.drawLine(400, 385, 600, 385);
         g.drawLine(400, 387, 600, 387);
-        // to connect tom1 and tom2 with bass
+        //add drum images
+        if (tom1 != null) {
+            g.drawImage(tom1, 370, 320, 140, 140, this);
+        }
+        if (tom2 != null) {
+            g.drawImage(tom2, 530, 320, 140, 140, this);
+        }
+        // Connect tom1 and tom2 with bass
         g.drawLine(520, 387, 520, 700);
         g.drawLine(522, 387, 522, 700);
         g.drawLine(518, 387, 518, 700);
-        // connect hihat to ground
-        g.drawLine(140, 410, 140, 800);
-        // connect snare to ground
-        g.drawLine(310, 450, 310, 800);
-        // floor tom to floor connect
+        if (bass != null) {
+            g.drawImage(bass, 370, 450, 300, 300, this);
+        }
+        // Connect snare to ground
+        g.drawLine(300, 450, 300, 800);
+        if (snare != null) {
+            g.drawImage(snare, 230, 420, 140, 140, this);
+        }
+        // Connect floor tom to floor
         g.drawLine(720, 450, 720, 800);
-        // ride cymbal to floor
+        if (floorTom != null) {
+            g.drawImage(floorTom, 640, 440, 160, 100, this);
+        }
+        if (crash != null) {
+            g.drawImage(crash,210, 350, 160, 60, this);
+        }
+        // Connect hi-hat to ground
+        g.drawLine(140, 410, 140, 800);
+        if (hihat != null) {
+            g.drawImage(hihat, 90, 350, 110, 90, this);
+        }
+        // Ride cymbal to floor
         g.drawLine(750, 350, 840, 500);
         g.drawLine(840, 500, 840, 800);
-        // crash cymbal to ground
-        g.drawLine(320, 390, 200, 450);
+        if (ride != null) {
+            g.drawImage(ride,670, 340, 200, 90, this);
+        }
+        // Crash cymbal to ground
+        g.drawLine(280, 390, 200, 450);
         g.drawLine(200, 450, 200, 800);
-    }
-
-    private void playSound(String soundName) {
-        try {
-            String soundPath = "drumSound/" + soundName + ".wav";
-            InputStream soundStream = getClass().getClassLoader().getResourceAsStream(soundPath);
-            if (soundStream == null) {
-                throw new FileNotFoundException("File not found: " + soundPath);
-            }
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundStream);
-            Clip clip = AudioSystem.getClip();
-            clip.open(audioInputStream);
-            clip.start();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    class CircularButton extends JButton {
-        private Color color;
-
-        CircularButton(String text, Color color) {
-            super(text);
-            this.color = color;
-            setContentAreaFilled(false);
-            setFocusPainted(false);
-            setBorderPainted(false);
-            addActionListener(e -> playSound(getText()));
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            if (getModel().isArmed()) {
-                g.setColor(color.darker());
-            } else {
-                g.setColor(color);
-            }
-            g.fillOval(0, 0, getSize().width - 1, getSize().height - 1);
-            super.paintComponent(g);
-        }
-
-        @Override
-        public void paintBorder(Graphics g) {
-            g.setColor(color.darker());
-            g.drawOval(0, 0, getSize().width - 1, getSize().height - 1);
-        }
-
-        @Override
-        public boolean contains(int x, int y) {
-            int radius = getWidth() / 2;
-            return (x - radius) * (x - radius) + (y - radius) * (y - radius) <= radius * radius;
-        }
-    }
-
-    class EllipticalButton extends JButton {
-        private Color color;
-
-        EllipticalButton(String text, Color color) {
-            super(text);
-            this.color = color;
-            setContentAreaFilled(false);
-            setFocusPainted(false);
-            setBorderPainted(false);
-            addActionListener(e -> playSound(getText()));
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            if (getModel().isArmed()) {
-                g.setColor(color.darker());
-            } else {
-                g.setColor(color);
-            }
-            g.fillOval(0, 0, getSize().width - 1, getSize().height - 1);
-            super.paintComponent(g);
-        }
-
-        @Override
-        public void paintBorder(Graphics g) {
-            g.setColor(color.darker());
-            g.drawOval(0, 0, getSize().width - 1, getSize().height - 1);
-        }
     }
 }

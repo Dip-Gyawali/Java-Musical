@@ -26,11 +26,9 @@ public class Keyboard extends JPanel {
         initializeSoundMap();
         addTitleandLine();
         displayKeyboard();
-
         keyboardFrame.setContentPane(this);
         keyboardFrame.setVisible(true);
 
-        // Add key listener to the panel
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -41,7 +39,7 @@ public class Keyboard extends JPanel {
             }
         });
         setFocusable(true);
-        requestFocusInWindow(); // Ensure the panel has focus
+        requestFocusInWindow();
     }
 
     private void addTitleandLine() {
@@ -72,16 +70,13 @@ public class Keyboard extends JPanel {
         String spaceSoundPath = "D:\\JAVA\\JavaSwing\\Main\\src\\keyboardSound\\space.wav";
         String enterShiftSoundPath = "D:\\JAVA\\JavaSwing\\Main\\src\\keyboardSound\\enter shift.wav";
         String backspaceSoundPath = "D:\\JAVA\\JavaSwing\\Main\\src\\keyboardSound\\Backspace.wav";
-
-        // Mapping each key to the same sound file
         for (char c = 'A'; c <= 'Z'; c++) {
             soundMap.put((int) c, defaultSoundPath);
         }
         for (char c = '0'; c <= '9'; c++) {
             soundMap.put((int) c, defaultSoundPath);
         }
-
-        // Special keys
+        //special keys with normal sound mapped
         soundMap.put(KeyEvent.VK_ESCAPE, defaultSoundPath);
         soundMap.put(KeyEvent.VK_TAB, defaultSoundPath);
         soundMap.put(KeyEvent.VK_CAPS_LOCK, defaultSoundPath);
@@ -98,7 +93,7 @@ public class Keyboard extends JPanel {
         soundMap.put(KeyEvent.VK_LEFT, defaultSoundPath);
         soundMap.put(KeyEvent.VK_RIGHT, defaultSoundPath);
 
-        // Specific sounds for certain keys
+        //space backspace enter and shifts shounds
         soundMap.put(KeyEvent.VK_SPACE, spaceSoundPath);
         soundMap.put(KeyEvent.VK_ENTER, enterShiftSoundPath);
         soundMap.put(KeyEvent.VK_SHIFT, enterShiftSoundPath);
