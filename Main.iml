@@ -8,5 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="jnativehook-2.2.2" level="project" />
+    <orderEntry type="library" exported="" name="mysql-connector-j-9.0.0" level="project" />
   </component>
 </module>

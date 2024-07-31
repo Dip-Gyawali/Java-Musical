@@ -79,7 +79,6 @@ public class Guitar extends JPanel {
         recordButton.setBackground(Color.RED);
         recordButton.addActionListener(e -> {
             if (!isRecord) {
-                recordStore = recordFileSave();
                 startRecording();
                 recordButton.setText("Stop");
             } else {
@@ -120,6 +119,7 @@ public class Guitar extends JPanel {
             tdl.start();
             System.out.println("Start Recording...");
             isRecord = true;
+            recordStore = recordFileSave();
             Thread recordingThread = new Thread(() -> {
                 try (AudioInputStream audioStream = new AudioInputStream(tdl)) {
                     AudioSystem.write(audioStream, AudioFileFormat.Type.WAVE, recordStore);
@@ -139,6 +139,13 @@ public class Guitar extends JPanel {
         tdl.stop();
         tdl.close();
         System.out.println("Stopped Recording");
+        int option =JOptionPane.showConfirmDialog(null,"Do You Want To Save?", "Save Recording", JOptionPane.YES_NO_OPTION);
+        if (option == 1) {
+            if (recordStore != null && recordStore.exists()) {
+                recordStore.delete();
+                System.out.println("Recording discarded");
+            }
+        }
     }
 
     private void addButtons() {
